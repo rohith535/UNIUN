@@ -1,4 +1,47 @@
+version: '3.8'
+
 services:
-  backend:
+  localstack:
+    image: localstack/localstack:latest
     environment:
-      - NODE_ENV=development
+      - SERVICES=dynamodb,dynamodbstreams,lambda,sns,sqs
+      - DEFAULT_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - DEBUG=1
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - ./notification-engine/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh
+      - ./notification-engine/lambda:/etc/localstack/init/ready.d/lambda
+    command: >
+      bash -c "
+        apt-get update && apt-get install -y jq
+        docker-entrypoint.sh
+      "
+
+  lambda-builder:
+    build:
+      context: ./notification-engine/lambda
+      dockerfile: Dockerfile
+    volumes:
+      - ./notification-engine/lambda:/usr/src/app
+    command: npm run build
+
+  producer:
+    build:
+      context: ./notification-engine/producer
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3000"
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_ENDPOINT=http://localstack:4566
+    depends_on:
+      - localstack
+
+volumes:
+  localstack-data:

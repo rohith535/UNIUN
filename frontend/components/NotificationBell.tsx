@@ -12,8 +12,8 @@ const NotificationBell = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const response = await api.get('/notifications');
-        setNotifications(response.data);
+        const notifications = await api.getNotifications();
+        setNotifications(notifications);
       } catch (error) {
         console.error('Failed to fetch notifications', error);
       }

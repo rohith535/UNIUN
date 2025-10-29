@@ -29,6 +29,7 @@ router.post('/:postId/like', authMiddleware, async (req: any, res: any) => {
   const postIdStr = String(postId)
   const idFilters: any[] = [{ _id: postIdStr }]
   if (ObjectId.isValid(postIdStr)) idFilters.push({ _id: new ObjectId(postIdStr) })
+  const post = await db.collection('posts').findOne({ $or: idFilters })
   // Toggle like: if like exists, remove and decrement; else add and increment
   const existing = await db.collection('likes').findOne({ userId, postId: postIdStr })
   if (existing) {
@@ -40,9 +41,18 @@ router.post('/:postId/like', authMiddleware, async (req: any, res: any) => {
   } else {
     await db.collection('likes').insertOne({ userId, postId: postIdStr, createdAt: new Date() })
     await db.collection('posts').updateOne({ $or: idFilters }, { $inc: { likes: 1 } })
+    if (post && post.userId && post.userId !== userId) {
+      await db.collection('notifications').insertOne({
+        userId: post.userId,
+        fromUserId: userId,
+        type: 'like',
+        postId: postIdStr,
+        createdAt: new Date(),
+      })
+    }
     saveDevData()
-    const post = await db.collection('posts').findOne({ $or: idFilters }, { projection: { likes: 1 } })
-    return res.json({ ok: true, liked: true, likes: Math.max(0, Number(post?.likes || 0)) })
+    const postAfter = await db.collection('posts').findOne({ $or: idFilters }, { projection: { likes: 1 } })
+    return res.json({ ok: true, liked: true, likes: Math.max(0, Number(postAfter?.likes || 0)) })
   }
 })
 
@@ -54,6 +64,7 @@ router.post('/:postId/repost', authMiddleware, async (req: any, res: any) => {
   const postIdStr = String(postId)
   const idFilters: any[] = [{ _id: postIdStr }]
   if (ObjectId.isValid(postIdStr)) idFilters.push({ _id: new ObjectId(postIdStr) })
+  const post = await db.collection('posts').findOne({ $or: idFilters })
   // Toggle repost: if repost exists, remove and decrement; else add and increment
   const existing = await db.collection('reposts').findOne({ userId, postId: postIdStr })
   if (existing) {
@@ -68,10 +79,19 @@ router.post('/:postId/repost', authMiddleware, async (req: any, res: any) => {
   } else {
     await db.collection('reposts').insertOne({ userId, postId: postIdStr, createdAt: new Date() })
     await db.collection('posts').updateOne({ $or: idFilters }, { $inc: { reposts: 1 } })
+    if (post && post.userId && post.userId !== userId) {
+      await db.collection('notifications').insertOne({
+        userId: post.userId,
+        fromUserId: userId,
+        type: 'repost',
+        postId: postIdStr,
+        createdAt: new Date(),
+      })
+    }
     mem.reposts.push({ userId, postId: postIdStr, createdAt: new Date() })
     saveDevData()
-    const post = await db.collection('posts').findOne({ $or: idFilters }, { projection: { reposts: 1 } })
-    return res.json({ ok: true, reposted: true, reposts: Math.max(0, Number(post?.reposts || 0)) })
+    const postAfter = await db.collection('posts').findOne({ $or: idFilters }, { projection: { reposts: 1 } })
+    return res.json({ ok: true, reposted: true, reposts: Math.max(0, Number(postAfter?.reposts || 0)) })
   }
 })
 
@@ -98,11 +118,22 @@ router.post('/:postId/reply', authMiddleware, async (req: any, res: any) => {
   if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text required' })
   const postId = req.params.postId
   const postIdStr = String(postId)
-  mem.replies.push({ userId: req.user.sub, postId: postIdStr, text, createdAt: new Date() })
-  // bump replies count on post in memory shim path
   const idFilters: any[] = [{ _id: postIdStr }]
   if (ObjectId.isValid(postIdStr)) idFilters.push({ _id: new ObjectId(postIdStr) })
+  const post = await db.collection('posts').findOne({ $or: idFilters })
+  mem.replies.push({ userId: req.user.sub, postId: postIdStr, text, createdAt: new Date() })
+  // bump replies count on post in memory shim path
+  if (ObjectId.isValid(postIdStr)) idFilters.push({ _id: new ObjectId(postIdStr) })
   await getMongoClient().db().collection('posts').updateOne({ $or: idFilters }, { $inc: { replies: 1 } })
+  if (post && post.userId && post.userId !== req.user.sub) {
+    await db.collection('notifications').insertOne({
+      userId: post.userId,
+      fromUserId: req.user.sub,
+      type: 'reply',
+      postId: postIdStr,
+      createdAt: new Date(),
+    })
+  }
   saveDevData()
   res.json({ ok: true })
 })

@@ -15,6 +15,7 @@ import profileRoutes from './routes/profile'
 import searchRoutes from './routes/search'
 import usersRoutes from './routes/users'
 import messagesRoutes from './routes/messages'
+import notificationsRoutes from './routes/notifications'
 import 'express-async-errors'
 import path from 'path'
 import os from 'os'
@@ -66,6 +67,7 @@ app.use('/api/profile', profileRoutes)
 app.use('/api/search', searchRoutes)
 app.use('/api/users', usersRoutes)
 app.use('/api/messages', messagesRoutes)
+app.use('/api/notifications', notificationsRoutes)
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', devRoutes)
 }

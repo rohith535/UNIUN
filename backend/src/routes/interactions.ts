@@ -42,12 +42,15 @@ router.post('/:postId/like', authMiddleware, async (req: any, res: any) => {
     await db.collection('likes').insertOne({ userId, postId: postIdStr, createdAt: new Date() })
     await db.collection('posts').updateOne({ $or: idFilters }, { $inc: { likes: 1 } })
     if (post && post.userId && post.userId !== userId) {
+      const postAfter = await db.collection('posts').findOne({ $or: idFilters }, { projection: { likes: 1 } })
       await db.collection('notifications').insertOne({
         userId: post.userId,
         fromUserId: userId,
         type: 'like',
         postId: postIdStr,
         createdAt: new Date(),
+        // Add the like count to the notification
+        likeCount: Math.max(0, Number(postAfter?.likes || 0)),
       })
     }
     saveDevData()

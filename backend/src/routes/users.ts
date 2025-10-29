@@ -214,6 +214,13 @@ router.post('/follow/:userId', authMiddleware, async (req: any, res: any) => {
   try {
     const db = getMongoClient().db()
     await db.collection('follows').updateOne({ followerId, followeeId }, { $set: { followerId, followeeId, createdAt: new Date() } }, { upsert: true })
+    // Create notification
+    await db.collection('notifications').insertOne({
+      userId: followeeId,
+      fromUserId: followerId,
+      type: 'follow',
+      createdAt: new Date(),
+    })
   } catch (e) { /* ignore */ }
 
   res.json({ ok: true })

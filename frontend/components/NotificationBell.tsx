@@ -43,20 +43,23 @@ const NotificationBell = () => {
         )}
       </Button>
       {isOpen && (
-        <div className="absolute right-0 mt-2 min-w-[300px] glass shadow-premium rounded-xl border border-white/10 p-3 z-50">
+        <div className="absolute right-0 mt-2 min-w-[300px] glass shadow-premium rounded-xl border border-white/10 p-3 z-50" style={{ zIndex: 50 }}>
           <div className="text-lg font-bold mb-2">Notifications</div>
           {notifications.length > 0 ? (
             notifications.map((notif) => {
               let message = '';
               switch (notif.type) {
                 case 'like':
-                  message = `User ${notif.fromUserId} liked your post`;
+                  message = `User ${notif.fromUserId} liked your post. Total likes: ${notif.likeCount}`;
                   break;
                 case 'repost':
                   message = `User ${notif.fromUserId} reposted your post`;
                   break;
                 case 'reply':
                   message = `User ${notif.fromUserId} replied to your post`;
+                  break;
+                case 'follow':
+                  message = `User ${notif.fromUserId} started following you`;
                   break;
                 default:
                   message = 'New notification';

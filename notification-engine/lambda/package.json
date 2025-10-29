@@ -1,0 +1,12 @@
+{
+  "name": "lambda-function",
+  "version": "1.0.0",
+  "description": "Node.js Lambda function to process DynamoDB streams",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "zip -r function.zip ."
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1354.0"
+  }
+}

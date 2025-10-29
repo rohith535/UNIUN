@@ -97,5 +97,13 @@ export async function unreadCount() { return api('/api/messages/unread-count') }
 export async function getThread(withUserId: string) { return api(`/api/messages/${withUserId}`) }
 export async function sendMessage(withUserId: string, text: string) { return api(`/api/messages/${withUserId}`, { method: 'POST', body: JSON.stringify({ text }) }) }
 
-const exported = { api, register, login, createPost, listPosts, deletePost, viewPost, likePost, repostPost, bookmarkPost, replyPost, interactionStatus, addToCart, getCart, checkoutCart, listBookmarks, listReposts, listReplies, me, followUser, unfollowUser, listFollowers, listFollowing, listConversations, unreadCount, getThread, sendMessage }
-export default exported
+export async function getNotifications() {
+  return api('/api/notifications');
+}
+
+export async function checkUsernameAvailability(username: string) {
+  return api(`/api/auth/username-available/${username}`);
+}
+
+const exported = { api, register, login, createPost, listPosts, deletePost, viewPost, likePost, repostPost, bookmarkPost, replyPost, interactionStatus, addToCart, getCart, checkoutCart, listBookmarks, listReposts, listReplies, me, followUser, unfollowUser, listFollowers, listFollowing, listConversations, unreadCount, getThread, sendMessage, getNotifications, checkUsernameAvailability };
+export default exported;

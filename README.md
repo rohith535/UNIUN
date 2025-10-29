@@ -281,3 +281,9 @@ Troubleshooting:
 
 - Error: Cannot connect to the Docker daemon… Ensure Docker Desktop is running, then retry `docker compose build`.
 - On Apple Silicon, Milvus may require emulation (`platform: linux/amd64`) or can be commented out for local dev.
+
+## Features
+
+- **Notifications**: Users receive notifications for likes, reposts, and replies on their posts. A notification bell in the top navigation bar displays the number of unread notifications and a dropdown list of recent notifications.
+- **Unique Username Validation**: New users are prevented from registering with a username that is already in use. The registration form provides real-time feedback on username availability.
+- **Conditional UI**: The notification bell and settings icon are only visible to logged-in users.

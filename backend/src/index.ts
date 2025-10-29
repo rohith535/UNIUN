@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 import { connectMongo } from './mongo';
 import { connectNeo4j } from './neo4j';
-import app from './app'
+import createApp from './app'
 import { createServer } from 'http'
 import { startWSServer } from './ws-server'
 import { loadDevData } from './dev-storage'
@@ -25,13 +25,17 @@ async function start() {
     console.warn('Warning: could not connect to Neo4j, continuing in degraded mode');
   }
 
-  const server = createServer(app)
-  server.listen(port, () => console.log(`Backend listening on ${port}`))
+  const server = createServer()
+  let wss: any;
   try {
-    startWSServer(server)
+    wss = startWSServer(server)
   } catch (err) {
     console.warn('Could not start WebSocket server', err)
   }
+  const app = createApp(wss);
+  server.on('request', app);
+
+  server.listen(port, () => console.log(`Backend listening on ${port}`))
 }
 
 start().catch((err) => {

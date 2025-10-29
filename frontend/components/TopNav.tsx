@@ -9,6 +9,7 @@ import Avatar from './ui/Avatar'
 import { useToast } from './ui/Toast'
 import { ThemeContext } from './Layout'
 import { Settings } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 
 export default function TopNav({ onOpenAuth }: { onOpenAuth?: () => void }) {
   const router = useRouter()
@@ -89,27 +90,32 @@ export default function TopNav({ onOpenAuth }: { onOpenAuth?: () => void }) {
         </div>
         <div className="flex items-center gap-4">
         <Button onClick={() => { show('Opening search', 'info'); router.push('/search') }} className={router.pathname === '/search' ? 'ring-2 ring-[#3b82f6]' : ''}><Icons.Search size={16} /> Search</Button>
-        <div className="relative" ref={settingsRef}>
-          <Button onClick={() => setShowSettings(s => !s)} aria-label="Open settings" title="Settings"><Settings size={16} /></Button>
-          {showSettings && (
-            <div className="absolute right-0 mt-2 min-w-[220px] glass shadow-premium rounded-xl border border-white/10 p-3 z-50">
-              <div className="text-xs text-gray-400 mb-2">Preferences</div>
-              <div className="mb-2">
-                <div className="text-premium mb-1">Theme</div>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button onClick={() => setTheme('dark')} className={theme==='dark'?'ring-2 ring-[#3b82f6]':''}>Dark</Button>
-                  <Button onClick={() => setTheme('default')} className={theme==='default'?'ring-2 ring-[#3b82f6]':''}>Default</Button>
-                  <Button onClick={() => setTheme('light-olive')} className={theme==='light-olive'?'ring-2 ring-[#3b82f6]':''}>Light (Olive)</Button>
-                  <Button onClick={() => setTheme('futuristic')} className={theme==='futuristic'?'ring-2 ring-[#3b82f6]':''}>Futuristic</Button>
+        {authed && (
+          <>
+            <NotificationBell />
+            <div className="relative" ref={settingsRef}>
+              <Button onClick={() => setShowSettings(s => !s)} aria-label="Open settings" title="Settings"><Settings size={16} /></Button>
+              {showSettings && (
+                <div className="absolute right-0 mt-2 min-w-[220px] glass shadow-premium rounded-xl border border-white/10 p-3 z-50">
+                  <div className="text-xs text-gray-400 mb-2">Preferences</div>
+                  <div className="mb-2">
+                    <div className="text-premium mb-1">Theme</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button onClick={() => setTheme('dark')} className={theme==='dark'?'ring-2 ring-[#3b82f6]':''}>Dark</Button>
+                      <Button onClick={() => setTheme('default')} className={theme==='default'?'ring-2 ring-[#3b82f6]':''}>Default</Button>
+                      <Button onClick={() => setTheme('light-olive')} className={theme==='light-olive'?'ring-2 ring-[#3b82f6]':''}>Light (Olive)</Button>
+                      <Button onClick={() => setTheme('futuristic')} className={theme==='futuristic'?'ring-2 ring-[#3b82f6]':''}>Futuristic</Button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-premium">Motion</span>
+                    <Button onClick={toggleMotion}>{motion === 'reduce' ? 'Reduce' : 'Auto'}</Button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-premium">Motion</span>
-                <Button onClick={toggleMotion}>{motion === 'reduce' ? 'Reduce' : 'Auto'}</Button>
-              </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
         {authed && (
           <Button onClick={() => { show('Opening messages', 'info'); router.push('/messages-direct') }} className="relative">
             <Icons.MessageSquare size={16} /> Messages

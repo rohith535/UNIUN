@@ -5,8 +5,17 @@ import { getMongoClient } from '../mongo'
 import fs from 'fs'
 import path from 'path'
 import { ObjectId } from 'mongodb'
+import AWS from 'aws-sdk'
 
 const router = Router()
+
+AWS.config.update({
+  region: process.env.AWS_REGION || 'us-east-1',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+});
+
+const dynamodb = new AWS.DynamoDB.DocumentClient();
 
 // Load avatar mapping (optional)
 let avatarMap: Record<string, string> = {}
@@ -214,6 +223,20 @@ router.post('/follow/:userId', authMiddleware, async (req: any, res: any) => {
   try {
     const db = getMongoClient().db()
     await db.collection('follows').updateOne({ followerId, followeeId }, { $set: { followerId, followeeId, createdAt: new Date() } }, { upsert: true })
+    // Create notification
+    const notificationId = new ObjectId().toHexString();
+    const notification = {
+      TableName: 'Notifications',
+      Item: {
+        userId: followeeId,
+        createdAt: Date.now(),
+        notificationId,
+        type: 'follow',
+        fromUserId: followerId,
+        read: false,
+      },
+    };
+    await dynamodb.put(notification).promise();
   } catch (e) { /* ignore */ }
 
   res.json({ ok: true })

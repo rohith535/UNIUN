@@ -16,6 +16,7 @@ import searchRoutes from './routes/search'
 import usersRoutes from './routes/users'
 import messagesRoutes from './routes/messages'
 import notificationsRoutes from './routes/notifications'
+import internalRoutes from './routes/internal'
 import 'express-async-errors'
 import path from 'path'
 import os from 'os'
@@ -72,6 +73,11 @@ if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', devRoutes)
 }
 
+export default (wss: any) => {
+  app.use('/api/internal', internalRoutes(wss));
+  return app;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: any, res: any, next: any) => {
   try {
@@ -83,5 +89,3 @@ app.use((err: any, req: any, res: any, next: any) => {
   }
   res.status(500).json({ error: 'internal' })
 })
-
-export default app

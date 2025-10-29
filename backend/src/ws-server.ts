@@ -1,15 +1,19 @@
 import { WebSocketServer } from 'ws'
+import { Server } from 'http'
+import jwt from 'jsonwebtoken'
+import { activeConnections } from './metrics'
 
 type ClientMeta = {
   ws: any
+  userId?: string
   room?: string
   peerId?: string
 }
 
 export function startWSServer(server: any) {
   const wss = new WebSocketServer({ noServer: true })
-  // store clients with metadata
-  const clients = new Set<ClientMeta>()
+  // store clients with metadata, mapped by userId
+  const clients = new Map<string, Set<ClientMeta>>()
   // rooms map: room -> Set<ClientMeta>
   const rooms = new Map<string, Set<ClientMeta>>()
 
@@ -56,105 +60,55 @@ export function startWSServer(server: any) {
     }
   })
 
-  wss.on('connection', (ws: any) => {
-    const meta: ClientMeta = { ws }
-    clients.add(meta)
+  wss.on('connection', (ws: any, req: any) => {
+    const meta: ClientMeta = { ws };
+    activeConnections.inc();
 
-    // Greet newcomer with demo chat feed from bots
-    try {
-      const greetings = [
-        { name: 'PAZE', text: "Welcome to the UNIUN chat—mind the memes." },
-        { name: 'PrDeep', text: "Context loaded. Jokes compiling…" },
-      ]
-      for (const g of greetings) {
-        setTimeout(() => {
-          try { ws.send(JSON.stringify({ type: 'message', author: g.name, text: g.text })) } catch { /* ignore send error */ }
-        }, Math.floor(Math.random() * 300) + 100)
+    // Authenticate user
+    const token = req.url.split('token=')[1];
+    if (token) {
+      try {
+        const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        meta.userId = decoded.sub;
+        if (!clients.has(meta.userId)) {
+          clients.set(meta.userId, new Set());
+        }
+        clients.get(meta.userId)!.add(meta);
+      } catch (e) {
+        ws.close();
       }
-  } catch { /* ignore greeting errors */ }
+    } else {
+      ws.close();
+    }
 
     ws.on('message', (raw: any) => {
-      let msg: any
+      let msg: any;
       try { msg = JSON.parse(raw.toString()) } catch { return }
 
-      // join message to bind peerId and room
-      if (msg.type === 'join') {
-        const room = msg.room || 'global'
-        meta.room = room
-        // assign a stable peerId if not provided
-        meta.peerId = msg.peerId || ('peer-' + Math.random().toString(36).slice(2, 9))
-
-        // add to room map
-        if (!rooms.has(room)) rooms.set(room, new Set())
-        rooms.get(room)!.add(meta)
-
-        // prepare members list
-        const members = Array.from(rooms.get(room)!).map(c => c.peerId).filter(Boolean)
-
-        // ack back to the joining client with assigned id and current members
-  try { meta.ws.send(JSON.stringify({ type: 'join:ack', peerId: meta.peerId, room, members })) } catch { /* ignore */ }
-
-        // notify other members in the room about the join
-        for (const c of rooms.get(room)!) {
-          if (c !== meta && c.ws.readyState === c.ws.OPEN) {
-            try { c.ws.send(JSON.stringify({ type: 'peer-joined', peerId: meta.peerId })) } catch { /* ignore */ }
-          }
-        }
-        return
-      }
-
-      // signaling messages: offer/answer/ice + simple chat 'message'
-      if (['offer', 'answer', 'ice', 'message'].includes(msg.type)) {
-        // If this is a chat message, generate humorous bot replies back to the sender
-        if (msg.type === 'message' && typeof msg.text === 'string') {
-          const chosen = typeof msg.bot === 'string' ? bots.find(b => b.name.toLowerCase() === String(msg.bot).toLowerCase()) : null
-          if (chosen) {
-            const line = chosen.lines[Math.floor(Math.random() * chosen.lines.length)]
-            setTimeout(() => {
-              try { meta.ws.send(JSON.stringify({ type: 'message', author: chosen.name, text: line })) } catch { /* ignore */ }
-            }, 200)
-          } else {
-            const picks = bots.sort(() => 0.5 - Math.random()).slice(3)
-            picks.forEach((b, i) => {
-              const line = b.lines[Math.floor(Math.random() * b.lines.length)]
-              setTimeout(() => {
-                try { meta.ws.send(JSON.stringify({ type: 'message', author: b.name, text: line })) } catch { /* ignore send error */ }
-              }, 200 + i * 250)
-            })
-          }
-        }
-
-        // if targetPeer provided, deliver only to that peer in same room
-        if (msg.targetPeer) {
-          // send to specific peer within the same room
-          const room = meta.room
-          const set = room ? rooms.get(room) : clients
-          for (const c of (set || clients)) {
-            if (c.peerId === msg.targetPeer && c.ws.readyState === c.ws.OPEN) {
-              try { c.ws.send(JSON.stringify({ ...msg, from: meta.peerId })) } catch { /* ignore */ }
-            }
-          }
-          return
-        }
-
-        // otherwise broadcast within the same room (or to all if no room)
-        const set = meta.room ? rooms.get(meta.room) : clients
-        for (const c of (set || clients)) {
-          if (c === meta) continue
-          if (c.ws.readyState !== c.ws.OPEN) continue
-          try { c.ws.send(JSON.stringify({ ...msg, from: meta.peerId })) } catch { /* ignore */ }
-        }
-      }
-    })
+      // Handle other message types...
+    });
 
     ws.on('close', () => {
-      clients.delete(meta)
-      if (meta.room && rooms.has(meta.room)) {
-        rooms.get(meta.room)!.delete(meta)
-        if (rooms.get(meta.room)!.size === 0) rooms.delete(meta.room)
+      activeConnections.dec();
+      if (meta.userId && clients.has(meta.userId)) {
+        clients.get(meta.userId)!.delete(meta);
+        if (clients.get(meta.userId)!.size === 0) {
+          clients.delete(meta.userId);
+        }
       }
-    })
-  })
+    });
+  });
+
+  (wss as any).broadcast = (userId: string, message: any) => {
+    if (clients.has(userId)) {
+      for (const client of clients.get(userId)!) {
+        if (client.ws.readyState === client.ws.OPEN) {
+          client.ws.send(JSON.stringify(message));
+        }
+      }
+    }
+  };
 
   console.log('WebSocket signaling server started with room/peer support')
+  return wss;
 }

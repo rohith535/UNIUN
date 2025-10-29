@@ -12,14 +12,26 @@ const NotificationBell = () => {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const data = await api.getNotifications();
-        setNotifications(data);
+        const response = await api.get('/notifications');
+        setNotifications(response.data);
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        console.error('Failed to fetch notifications', error);
       }
     };
 
     fetchNotifications();
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      const ws = new WebSocket(`ws://localhost:4000/ws?token=${token}`);
+      ws.onmessage = (event) => {
+        const notification = JSON.parse(event.data);
+        setNotifications((prev) => [notification, ...prev]);
+      };
+      return () => {
+        ws.close();
+      };
+    }
   }, []);
 
   useEffect(() => {

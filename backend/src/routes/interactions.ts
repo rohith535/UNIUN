@@ -116,6 +116,8 @@ router.post('/:postId/bookmark', authMiddleware, async (req: any, res: any) => {
 router.post('/:postId/reply', authMiddleware, async (req: any, res: any) => {
   const { text } = req.body
   if (!text || typeof text !== 'string') return res.status(400).json({ error: 'text required' })
+  const client = getMongoClient()
+  const db = client.db()
   const postId = req.params.postId
   const postIdStr = String(postId)
   const idFilters: any[] = [{ _id: postIdStr }]

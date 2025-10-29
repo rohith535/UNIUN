@@ -70,10 +70,14 @@ export function startWSServer(server: any) {
       try {
         const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
         meta.userId = decoded.sub;
-        if (!clients.has(meta.userId)) {
-          clients.set(meta.userId, new Set());
+        if (meta.userId) {
+          if (!clients.has(meta.userId)) {
+            clients.set(meta.userId, new Set());
+          }
+          clients.get(meta.userId)!.add(meta);
+        } else {
+          ws.close();
         }
-        clients.get(meta.userId)!.add(meta);
       } catch (e) {
         ws.close();
       }
